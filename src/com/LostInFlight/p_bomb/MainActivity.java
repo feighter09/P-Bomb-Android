@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.telephony.SmsManager;
 import android.util.Log;
@@ -29,7 +30,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         
         numPicker = (NumberPicker) findViewById(R.id.numberPicker);
-        String[] values = {"1", "5", "10", "20", "50", "100", "500"};
+        String[] values = {"1", "5", "10", "20", "50", "100", "500", "1000"};
         numPicker.setMinValue(1);
         numPicker.setMaxValue(values.length);
         numPicker.setDisplayedValues(values);
@@ -37,7 +38,7 @@ public class MainActivity extends Activity {
         registerForBroadcast("SMS_SENT");
         Button sendButton = (Button) findViewById(R.id.sendButton);
         sendButton.setOnClickListener(new OnClickListener() {
-			
+        	
 			@Override
 			public void onClick(View v) {
 				EditText messageBox = (EditText) findViewById(R.id.contentBox);
@@ -45,8 +46,9 @@ public class MainActivity extends Activity {
 				destination = destinationBox.getText().toString();
 		        message = messageBox.getText().toString();
 		        
-		        int[] values = {0, 1, 5, 10, 20, 50, 100, 500};
+		        int[] values = {0, 1, 5, 10, 20, 50, 100, 500, 1000};
 		        numToSend += values[numPicker.getValue()];
+		        sendSMS();
 			}
 		});
     }
@@ -70,9 +72,12 @@ public class MainActivity extends Activity {
             public void onReceive(Context arg0, Intent arg1) {
             	if (getResultCode() == Activity.RESULT_OK) {
             		Log.d("SMS_Status", "SMS Sent");
-            		if (numToSend-- > 0){
-            			SystemClock.sleep(2000);
-            			sendSMS();
+            		if (--numToSend > 0){
+            			(new Handler()).postDelayed(new Runnable() { 
+            		         public void run() { 
+            		        	 sendSMS(); 
+            		         } 
+            		    }, 1000); 
             		}
             	} else {
             		Log.d("SMS_Status", "SMS Failed to Send");
