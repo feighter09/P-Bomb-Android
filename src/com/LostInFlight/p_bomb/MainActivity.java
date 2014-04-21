@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.Menu;
@@ -20,7 +21,7 @@ public class MainActivity extends Activity {
 
 	private NumberPicker numPicker;
 	private String destination, message;
-	private int numSent = 0, numToSend = 0; 
+	private int numToSend = 0; 
 	
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +34,7 @@ public class MainActivity extends Activity {
         numPicker.setMaxValue(values.length);
         numPicker.setDisplayedValues(values);
         
+        registerForBroadcast("SMS_SENT");
         Button sendButton = (Button) findViewById(R.id.sendButton);
         sendButton.setOnClickListener(new OnClickListener() {
 			
@@ -44,13 +46,9 @@ public class MainActivity extends Activity {
 		        message = messageBox.getText().toString();
 		        
 		        int[] values = {0, 1, 5, 10, 20, 50, 100, 500};
-		        numSent = 0;
-		        numToSend = values[numPicker.getValue()];
-		        
-		        sendSMS();
+		        numToSend += values[numPicker.getValue()];
 			}
 		});
-        
     }
 
     @Override
@@ -61,39 +59,27 @@ public class MainActivity extends Activity {
     }
     
     public void sendSMS() {
-    	String SENT = "SMS_SENT";
-        PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent(SENT), 0);
-        
-        //---when the SMS has been sent---
-        registerReceiver(new BroadcastReceiver(){
-            @Override
-            public void onReceive(Context arg0, Intent arg1) {
-            	if (++numSent < numToSend) {
-            		sendSMS();
-            	}
-            	
-                switch (getResultCode()) {
-                    case Activity.RESULT_OK:
-                        Log.d("SMS Status", "SMS sent");
-                        break;
-                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
-                        Log.d("SMS Status", "Generic failure");
-                        break;
-                    case SmsManager.RESULT_ERROR_NO_SERVICE:
-                        Log.d("SMS Status", "No service");
-                        break;
-                    case SmsManager.RESULT_ERROR_NULL_PDU:
-                        Log.d("SMS Status", "Null PDU");
-                        break;
-                    case SmsManager.RESULT_ERROR_RADIO_OFF:
-                        Log.d("SMS Status", "Radio off");
-                        break;
-                }
-            }
-        }, new IntentFilter(SENT));
- 
+        PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
         SmsManager sms = SmsManager.getDefault();
         sms.sendTextMessage(destination, null, message, sentPI, null);        
     }
+
+	private void registerForBroadcast(String SENT) {
+		registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+            	if (getResultCode() == Activity.RESULT_OK) {
+            		Log.d("SMS_Status", "SMS Sent");
+            		if (numToSend-- > 0){
+            			SystemClock.sleep(2000);
+            			sendSMS();
+            		}
+            	} else {
+            		Log.d("SMS_Status", "SMS Failed to Send");
+            		sendSMS();
+            	}
+            }
+        }, new IntentFilter(SENT));
+	}
     
 }
